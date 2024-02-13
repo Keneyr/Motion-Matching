@@ -17,7 +17,9 @@ from torch.utils.tensorboard import SummaryWriter
 from train_common import load_database, load_features, save_network
 
 # Networks
-
+"""
+Compressor: 5Layers, 512Units, ELU Activation
+"""
 class Compressor(nn.Module):
 
     def __init__(self, input_size, output_size, hidden_size=512):
@@ -37,7 +39,9 @@ class Compressor(nn.Module):
         x = self.linear3(x)
         return x.reshape([nbatch, nwindow, -1])
         
-        
+"""
+Decompressor: 3Layers, 512Units, ReLU Activation
+"""        
 class Decompressor(nn.Module):
 
     def __init__(self, input_size, output_size, hidden_size=512):
@@ -96,13 +100,16 @@ if __name__ == '__main__':
     
     Grot, Gpos, Gvel, Gang = quat.fk_vel(Yrot, Ypos, Yvel, Yang, parents)
     
-    # Compute character space
+    # Compute character space, which is facing frame
     
     Qrot = quat.inv_mul(Grot[:,0:1], Grot)
     Qpos = quat.inv_mul_vec(Grot[:,0:1], Gpos - Gpos[:,0:1])
     Qvel = quat.inv_mul_vec(Grot[:,0:1], Gvel)
     Qang = quat.inv_mul_vec(Grot[:,0:1], Gang)
     
+    """
+        ???
+    """
     # Compute transformation matrix
     
     Yxfm = quat.to_xform(Yrot)
@@ -175,6 +182,9 @@ if __name__ == '__main__':
         Yextra.mean(axis=0).ravel(),
     ]).astype(np.float32))
     
+    """
+    ???
+    """
     compressor_std_in = torch.as_tensor(np.hstack([
         Ypos_scale.repeat((nbones-1)*3),
         Ytxy_scale.repeat((nbones-1)*6),
@@ -426,8 +436,11 @@ if __name__ == '__main__':
         
         Ygnd_extra = Yextra[batch]
         
-        # Encode
-        
+        """
+        Encode, Compressor
+        Input: animation data under local space and character space,
+        output: Z, latent variable
+        """
         Zgnd = network_compressor((torch.cat([
             Ygnd_pos[:,:,1:].reshape([batchsize, window, -1]),
             Ygnd_txy[:,:,1:].reshape([batchsize, window, -1]),
@@ -442,7 +455,11 @@ if __name__ == '__main__':
             Ygnd_extra.reshape([batchsize, window, -1]),
         ], dim=-1) - compressor_mean_in) / compressor_std_in)
             
-        # Decode
+        """
+        Decode, Decompressor
+        Input: features of animation data and Z latent variable
+        output: corresponding pose(animation) data under local space
+        """ 
         
         Ytil = (network_decompressor(torch.cat([Xgnd, Zgnd], dim=-1)) * 
             decompressor_std_out + decompressor_mean_out)
@@ -490,7 +507,7 @@ if __name__ == '__main__':
         
         Zdgnd = (Zgnd[:,1:] - Zgnd[:,:-1]) / dt
         
-        # Compute losses
+        # Compute losses: local space and character space
         
         loss_loc_pos = torch.mean(75.0 * torch.abs(Ygnd_pos - Ytil_pos))
         loss_loc_txy = torch.mean(10.0 * torch.abs(Ygnd_txy - Ytil_txy))

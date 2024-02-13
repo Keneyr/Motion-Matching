@@ -96,7 +96,7 @@ int database_trajectory_index_clamp(database& db, int frame, int offset)
 }
 
 //--------------------------------------
-
+//Z-score normalization: (x - mu) / std
 void normalize_feature(
     slice2d<float> features,
     slice1d<float> features_offset,
@@ -239,11 +239,14 @@ void forward_kinematics_velocity(
             bone_parents(bone));
         
         bone_position = quat_mul_vec3(parent_rotation, bone_positions(bone)) + parent_position;
+        //dx / dt = dp_x / dt + dot(p_ori, local_vel) + p_omega cross dot(p_ori, r_0)
         bone_velocity = 
             parent_velocity + 
             quat_mul_vec3(parent_rotation, bone_velocities(bone)) + 
             cross(parent_angular_velocity, quat_mul_vec3(parent_rotation, bone_positions(bone)));
+        
         bone_rotation = quat_mul(parent_rotation, bone_rotations(bone));
+        //omega = p_omega + dot(p_orientation, local_omega)
         bone_angular_velocity = quat_mul_vec3(parent_rotation, bone_angular_velocities(bone)) + parent_angular_velocity;
     }
     else
@@ -378,7 +381,7 @@ void forward_kinematics_velocity_partial(
 
 //--------------------------------------
 
-// Compute a feature for the position of a bone relative to the simulation/root bone
+// Compute a feature for the position of a bone relative to the simulation/root bone, or called facing frame
 void compute_bone_position_feature(database& db, int& offset, int bone, float weight = 1.0f)
 {
     for (int i = 0; i < db.nframes(); i++)
@@ -386,6 +389,7 @@ void compute_bone_position_feature(database& db, int& offset, int bone, float we
         vec3 bone_position;
         quat bone_rotation;
         
+        //after FK the bone_position, bone_rotation is under global system
         forward_kinematics(
             bone_position,
             bone_rotation,
@@ -394,6 +398,7 @@ void compute_bone_position_feature(database& db, int& offset, int bone, float we
             db.bone_parents,
             bone);
         
+        // bone position coordinates: from global system to facing frame coordinate system
         bone_position = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), bone_position - db.bone_positions(i, 0));
         
         db.features(i, offset + 0) = bone_position.x;
@@ -428,6 +433,7 @@ void compute_bone_velocity_feature(database& db, int& offset, int bone, float we
             db.bone_parents,
             bone);
         
+        // bone velocity coordinates under facing frame coordinate system
         bone_velocity = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), bone_velocity);
         
         db.features(i, offset + 0) = bone_velocity.x;
@@ -449,10 +455,12 @@ void compute_trajectory_position_feature(database& db, int& offset, float weight
         int t1 = database_trajectory_index_clamp(db, i, 40);
         int t2 = database_trajectory_index_clamp(db, i, 60);
         
+        // trajectory(simulation bone) future position coordinates under current facing frame system
         vec3 trajectory_pos0 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), db.bone_positions(t0, 0) - db.bone_positions(i, 0));
         vec3 trajectory_pos1 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), db.bone_positions(t1, 0) - db.bone_positions(i, 0));
         vec3 trajectory_pos2 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), db.bone_positions(t2, 0) - db.bone_positions(i, 0));
         
+        //only consider x, z, no y
         db.features(i, offset + 0) = trajectory_pos0.x;
         db.features(i, offset + 1) = trajectory_pos0.z;
         db.features(i, offset + 2) = trajectory_pos1.x;
@@ -475,6 +483,9 @@ void compute_trajectory_direction_feature(database& db, int& offset, float weigh
         int t1 = database_trajectory_index_clamp(db, i, 40);
         int t2 = database_trajectory_index_clamp(db, i, 60);
         
+        /* trajectory(simulation bone) future facing direction coordinates under current facing frame system
+         *                       quat_mul_vec3(db.bone_rotations(t0, 0), vec3(0, 0, 1): facing(z) direction under global system
+        */
         vec3 trajectory_dir0 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), quat_mul_vec3(db.bone_rotations(t0, 0), vec3(0, 0, 1)));
         vec3 trajectory_dir1 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), quat_mul_vec3(db.bone_rotations(t1, 0), vec3(0, 0, 1)));
         vec3 trajectory_dir2 = quat_mul_vec3(quat_inv(db.bone_rotations(i, 0)), quat_mul_vec3(db.bone_rotations(t2, 0), vec3(0, 0, 1)));
@@ -525,7 +536,10 @@ void database_build_bounds(database& db)
     }
 }
 
-// Build all motion matching features and acceleration structure
+/*
+* Build all motion matching features and acceleration structure
+* feature \in R^{27}
+*/
 void database_build_matching_features(
     database& db,
     const float feature_weight_foot_position,

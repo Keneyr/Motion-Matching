@@ -19,7 +19,9 @@ from sklearn.neighbors import BallTree
 from train_common import load_database, load_features, load_latent, save_network
 
 # Networks
-
+"""
+Projector: 6Layers, 512Units, ReLU Activation
+"""
 class Projector(nn.Module):
 
     def __init__(self, input_size, output_size, hidden_size=512):
@@ -134,6 +136,7 @@ if __name__ == '__main__':
             fmin, fmax = Xhat.cpu().numpy().min(), Xhat.cpu().numpy().max()
             
             fig, axs = plt.subplots(nfeatures, sharex=True, figsize=(12, 2*nfeatures))
+            # blue orange green
             for i in range(nfeatures):
                 axs[i].plot(Xgnd[:500:4,i].cpu().numpy(), marker='.', linestyle='None')
                 axs[i].plot(Xtil[:500:4,i].cpu().numpy(), marker='.', linestyle='None')
@@ -189,10 +192,12 @@ if __name__ == '__main__':
         # Extract batch
         
         samples = np.random.randint(0, nframes, size=[batchsize])
-        
-        nsigma = np.random.uniform(size=[batchsize, 1]).astype(np.float32)
-        noise = np.random.normal(size=[batchsize, nfeatures]).astype(np.float32)
-        Xhat = X[samples] + X_noise_std * nsigma * noise
+        """
+        ???
+        """
+        nsigma = np.random.uniform(size=[batchsize, 1]).astype(np.float32) # uniform: n^\sigma \in U(0,1)
+        noise = np.random.normal(size=[batchsize, nfeatures]).astype(np.float32) # normal: n \in N(0,1)
+        Xhat = X[samples] + X_noise_std * nsigma * noise # x + n^\sigma * n
         
         # Find nearest
         

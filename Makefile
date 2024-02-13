@@ -1,12 +1,12 @@
 PLATFORM ?= PLATFORM_DESKTOP
-BUILD_MODE ?= RELEASE
+#BUILD_MODE ?= RELEASE
 RAYLIB_DIR = C:/raylib
 INCLUDE_DIR = -I ./ -I $(RAYLIB_DIR)/raylib/src -I $(RAYLIB_DIR)/raygui/src
 LIBRARY_DIR = -L $(RAYLIB_DIR)/raylib/src
 DEFINES = -D _DEFAULT_SOURCE -D RAYLIB_BUILD_MODE=$(BUILD_MODE) -D $(PLATFORM)
 
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
-    CC = g++
+    CC = g++ -std=c++11
     EXT = .exe
     ifeq ($(BUILD_MODE),RELEASE)
         CFLAGS ?= $(DEFINES) -ffast-math -march=native -D NDEBUG -O3 $(RAYLIB_DIR)/raylib/src/raylib.rc.data $(INCLUDE_DIR) $(LIBRARY_DIR) 

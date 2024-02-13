@@ -205,3 +205,9 @@ static inline vec3 clamp(vec3 v, vec3 min, vec3 max)
         clampf(v.y, min.y, max.y),
         clampf(v.z, min.z, max.z));
 }
+//--------------------------------------
+
+static inline Vector3 to_Vector3(vec3 v)
+{
+    return (Vector3){ v.x, v.y, v.z };
+}

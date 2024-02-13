@@ -17,7 +17,9 @@ from torch.utils.tensorboard import SummaryWriter
 from train_common import load_database, load_features, load_latent, save_network
 
 # Networks
-
+"""
+Stepper: 4Layers, 512Units, ReLU Activation
+"""
 class Stepper(nn.Module):
 
     def __init__(self, input_size, hidden_size=512):
@@ -68,6 +70,10 @@ if __name__ == '__main__':
     X_scale = X.std()
     Z_scale = Z.std()
     
+    """
+    Stepper: a network trained to take as input matching and latent feature vectors at a given frame xi zi , and
+    output a delta which can be added to produce the feature vectors at the next frame xi+1 zi+1.
+    """
     stepper_mean_out = torch.as_tensor(np.hstack([
         ((X[1:] - X[:-1]) / dt).mean(axis=0).ravel(),
         ((Z[1:] - Z[:-1]) / dt).mean(axis=0).ravel(),
@@ -82,7 +88,9 @@ if __name__ == '__main__':
         X.mean(axis=0).ravel(),
         Z.mean(axis=0).ravel(),
     ]).astype(np.float32))
-    
+    """
+    ???
+    """
     stepper_std_in = torch.as_tensor(np.hstack([
         X_scale.repeat(nfeatures),
         Z_scale.repeat(nlatent),
@@ -202,7 +210,7 @@ if __name__ == '__main__':
         Xgnd = X[batch]
         Zgnd = Z[batch]
         
-        # Predict
+        # Predict, the first frame of animation data
         
         Xtil = [Xgnd[:,0]]
         Ztil = [Zgnd[:,0]]

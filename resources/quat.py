@@ -12,6 +12,9 @@ def eye(shape, dtype=np.float32):
 def length(x):
     return np.sqrt(np.sum(x * x, axis=-1))
 
+"""
+    numpy.newaxis: A convenient alias for None, useful for indexing arrays.
+"""
 def normalize(x, eps=1e-8):
     return x / (length(x)[...,np.newaxis] + eps)
 
@@ -166,6 +169,10 @@ def to_scaled_angle_axis(x, eps=1e-5):
 def from_scaled_angle_axis(x, eps=1e-5):
     return exp(x / 2.0, eps)
 
+"""
+    (...) represent as many colons as needed to produce a complete indexing tuple, e.g. x is an array with 5 axes, then
+    x[..., 3] = x[:, :, :, :, 3]
+"""
 def fk(lrot, lpos, parents):
     
     gp, gr = [lpos[...,:1,:]], [lrot[...,:1,:]]
@@ -188,7 +195,10 @@ def ik(grot, gpos, parents):
                 inv(grot[...,parents[1:],:]),
                 gpos[...,1:,:] - gpos[...,parents[1:],:]),
         ], axis=-2))
-    
+
+"""
+    Attention: velocity change from local to global is a little different
+"""    
 def fk_vel(lrot, lpos, lvel, lang, parents):
     
     gp, gr, gv, ga = [lpos[...,:1,:]], [lrot[...,:1,:]], [lvel[...,:1,:]], [lang[...,:1,:]]

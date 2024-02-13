@@ -33,11 +33,11 @@ def animation_mirror(lrot, lpos, names, parents):
 
 files = [
     # We just use a small section of this clip for the standing idle
-    ('pushAndStumble1_subject5.bvh', 194,  351), 
+    ('../../ubisoft-laforge-animation-dataset/lafan1/lafan1/pushAndStumble1_subject5.bvh', 194,  351), 
     # Running
-    ('run1_subject5.bvh',             90, 7086),
+    ('../../ubisoft-laforge-animation-dataset/lafan1/lafan1/run1_subject5.bvh',             90, 7086),
     # Walking
-    ('walk1_subject5.bvh',            80, 7791),
+    ('../../ubisoft-laforge-animation-dataset/lafan1/lafan1/walk1_subject5.bvh',            80, 7791),
 ]
 
 """ We will accumulate data in these lists """
@@ -84,7 +84,7 @@ for filename, start, stop in files:
         nframes = positions.shape[0]
         nbones = positions.shape[1]
         
-        # Supersample data to 60 fps
+        # Supersample data to 60 fps, original data is approximately 33fps
         original_times = np.linspace(0, nframes - 1, nframes)
         sample_times = np.linspace(0, nframes - 1, int(0.9 * (nframes * 2 - 1))) # Speed up data by 10%
         
@@ -109,6 +109,9 @@ for filename, start, stop in files:
         sim_position = signal.savgol_filter(sim_position, 31, 3, axis=0, mode='interp')
         
         # Direction comes from projected hip forward direction
+        """
+        @keneyr: ???
+        """
         sim_direction = np.array([1.0, 0.0, 1.0]) * quat.mul_vec(global_rotations[:,sim_rotation_joint:sim_rotation_joint+1], np.array([0.0, 1.0, 0.0]))
 
         # We need to re-normalize the direction after both projection and smoothing
@@ -119,7 +122,8 @@ for filename, start, stop in files:
         # Extract rotation from direction
         sim_rotation = quat.normalize(quat.between(np.array([0, 0, 1]), sim_direction))
 
-        # Transform first joints to be local to sim and append sim as root bone
+        # Transform first joints to be local to sim and append sim as root bone, 
+        # so that for every frame in the animation they are always facing in the same forward direction.
         positions[:,0:1] = quat.mul_vec(quat.inv(sim_rotation), positions[:,0:1] - sim_position)
         rotations[:,0:1] = quat.mul(quat.inv(sim_rotation), rotations[:,0:1])
         
@@ -132,7 +136,7 @@ for filename, start, stop in files:
         
         """ Compute Velocities """
         
-        # Compute velocities via central difference
+        # Compute velocities via central difference, m/s
         velocities = np.empty_like(positions)
         velocities[1:-1] = (
             0.5 * (positions[2:  ] - positions[1:-1]) * 60.0 +
@@ -140,7 +144,7 @@ for filename, start, stop in files:
         velocities[ 0] = velocities[ 1] - (velocities[ 3] - velocities[ 2])
         velocities[-1] = velocities[-2] + (velocities[-2] - velocities[-3])
         
-        # Same for angular velocities
+        # Same for angular velocities, theta/s
         angular_velocities = np.zeros_like(positions)
         angular_velocities[1:-1] = (
             0.5 * quat.to_scaled_angle_axis(quat.abs(quat.mul_inv(rotations[2:  ], rotations[1:-1]))) * 60.0 +
@@ -327,7 +331,7 @@ if True:
     plt.tight_layout()
     plt.show()
     
-    # Compute Trajectories
+    # Compute Trajectories, get the 60 frames position in the future each 5 frame, local to current frame orientation
     
     trajectories_sim_walk = []
     
@@ -404,6 +408,7 @@ with open('database.bin', 'wb') as f:
     nranges = range_starts.shape[0]
     ncontacts = contact_states.shape[1]
     
+    # hierachy the same as bvh
     f.write(struct.pack('II', nframes, nbones) + bone_positions.ravel().tobytes())
     f.write(struct.pack('II', nframes, nbones) + bone_velocities.ravel().tobytes())
     f.write(struct.pack('II', nframes, nbones) + bone_rotations.ravel().tobytes())
